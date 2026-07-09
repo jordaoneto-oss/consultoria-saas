@@ -1,0 +1,121 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  APP_NAME: consultoria-saas
+  WP_DIR: /var/www/html
+
+jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+
+      - name: PHP Lint
+        run: |
+          find . -name '*.php' -not -path './vendor/*' -exec php -l {} \;
+
+      - name: Check secrets
+        run: |
+          if grep -r "sk_live\|sk_test\|ghp_" . --include="*.php" --include="*.js" --include="*.json" --include="*.env" 2>/dev/null; then
+            echo "FATAL: Secrets detected in repository!"
+            exit 1
+          fi
+          echo "No secrets found."
+
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -t rsa ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy plugin and theme
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
+            cd ${{ env.WP_DIR }}
+
+            # Backup antes do deploy
+            wp db export backups/pre-deploy-\$(date +%Y%m%d_%H%M%S).sql --allow-root 2>/dev/null || true
+
+            # Manter backups dos últimos 7 dias
+            find backups/ -name '*.sql' -mtime +7 -delete 2>/dev/null || true
+          "
+
+          # Sincronizar plugin
+          rsync -avz --delete \
+            -e 'ssh -i ~/.ssh/deploy_key' \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='templates/*' \
+            ./wp-content/plugins/consultoria-platform/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.WP_DIR }}/wp-content/plugins/consultoria-platform/
+
+          # Sincronizar tema
+          rsync -avz --delete \
+            -e 'ssh -i ~/.ssh/deploy_key' \
+            --exclude='.git' \
+            ./wp-content/themes/consultoria-theme/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ env.WP_DIR }}/wp-content/themes/consultoria-theme/
+
+      - name: Post-deploy tasks
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
+            cd ${{ env.WP_DIR }}
+
+            # Atualizar banco de dados (rodar Schema::create se necessário)
+            wp plugin activate consultoria-platform --allow-root 2>/dev/null || true
+
+            # Limpar cache
+            wp cache flush --allow-root 2>/dev/null || true
+            wp rewrite flush --allow-root 2>/dev/null || true
+
+            # Verificar saúde do site
+            wp site health --allow-root 2>/dev/null || true
+
+            echo '=== Deploy concluido ==='
+            date
+          "
+
+  notify:
+    name: Notify
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify Sentry
+        if: ${{ needs.deploy.result == 'success' }}
+        run: |
+          curl -s -X POST https://sentry.io/api/hooks/release/builtin/${{ secrets.SENTRY_ORG }}/${{ secrets.SENTRY_PROJECT }}/ \
+            -H 'Content-Type: application/json' \
+            -d '{"version":"${{ github.sha }}","refs":[{"repository":"${{ github.repository }}","commit":"${{ github.sha }}"}]}' \
+            -o /dev/null || true
+          echo "Deploy do commit ${{ github.sha }} finalizado com sucesso."
