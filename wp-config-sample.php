@@ -17,7 +17,7 @@ define('WP_DEBUG_LOG',     filter_var(getenv('WP_DEBUG_LOG'), FILTER_VALIDATE_BO
 define('WP_DEBUG_DISPLAY', filter_var(getenv('WP_DEBUG_DISPLAY'), FILTER_VALIDATE_BOOLEAN) ?: false);
 
 define('WP_REDIS_HOST', getenv('REDIS_HOST') ?: 'redis');
-define('WP_REDIS_PORT', (int) (getenv('REDIS_PORT') ?: 6379);
+define('WP_REDIS_PORT', (int) (getenv('REDIS_PORT') ?: 6379));
 
 define('JWT_AUTH_SECRET_KEY', getenv('JWT_SECRET_KEY') ?: 'dev-secret-key-change-in-production');
 define('JWT_AUTH_CORS_ENABLE', true);
