@@ -104,11 +104,6 @@ add_action('init', function () {
 });
 
 // Custom body open
-add_action('wp_body_open', function () {
-    if (function_exists('wp_body_open')) {
-        wp_body_open();
-    }
-});
 
 // Theme setup - configure image sizes
 add_action('init', function () {
@@ -175,5 +170,53 @@ function ct_pagination(): void {
             echo '<li class="page-item' . $class . '">' . str_replace('page-numbers', 'page-numbers page-link', $page) . '</li>';
         }
         echo '</ul></nav>';
+    }
+}
+
+// Bootstrap Navwalker
+if (!class_exists('WP_Bootstrap_Navwalker')) {
+    class WP_Bootstrap_Navwalker extends Walker_Nav_Menu {
+        public function start_lvl(&$output, $depth = 0, $args = null) {
+            $indent = str_repeat("\t", $depth);
+            $output .= "\n$indent<ul class=\"dropdown-menu\">\n";
+        }
+        public function start_el(&$output, $item, $depth = 0, $args = null, $id = 0) {
+            $indent = ($depth) ? str_repeat("\t", $depth) : '';
+            $classes = empty($item->classes) ? [] : (array) $item->classes;
+            $classes[] = 'nav-item';
+            if (in_array('menu-item-has-children', $classes)) {
+                $classes[] = 'dropdown';
+            }
+            $class_names = join(' ', apply_filters('nav_menu_css_class', array_filter($classes), $item, $args, $depth));
+            $class_names = $class_names ? ' class="' . esc_attr($class_names) . '"' : '';
+            $output .= $indent . '<li' . $class_names . '>';
+            $atts = [];
+            $atts['title']  = !empty($item->attr_title) ? $item->attr_title : '';
+            $atts['target'] = !empty($item->target)     ? $item->target     : '';
+            $atts['rel']    = !empty($item->xfn)         ? $item->xfn        : '';
+            $atts['href']   = !empty($item->url)         ? $item->url        : '';
+            $atts = apply_filters('nav_menu_link_attributes', $atts, $item, $args, $depth);
+            $attributes = '';
+            foreach ($atts as $attr => $value) {
+                if (!empty($value)) {
+                    $value = ('href' === $attr) ? esc_url($value) : esc_attr($value);
+                    $attributes .= ' ' . $attr . '="' . $value . '"';
+                }
+            }
+            $item_output = $args->before;
+            $item_output .= '<a' . $attributes . ' class="nav-link">';
+            $item_output .= $args->link_before . apply_filters('the_title', $item->title, $item->ID) . $args->link_after;
+            $item_output .= '</a>';
+            $item_output .= $args->after;
+            $output .= apply_filters('walker_nav_menu_start_el', $item_output, $item, $depth, $args);
+        }
+        public function display_element($element, &$children_elements, $max_depth, $depth, $args, &$output) {
+            if (!$element) return;
+            $id_field = $this->db_fields['id'];
+            if (!empty($children_elements[$element->$id_field])) {
+                $element->classes[] = 'menu-item-has-children';
+            }
+            parent::display_element($element, $children_elements, $max_depth, $depth, $args, $output);
+        }
     }
 }

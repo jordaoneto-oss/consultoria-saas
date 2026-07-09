@@ -124,6 +124,7 @@ final class ConsultoriaPlatform {
 
     private function registerHooks(): void {
         add_action('init', [$this, 'registerPostTypes']);
+        add_action('init', [$this, 'registerShortcodes']);
         add_action('rest_api_init', [$this, 'registerRoutes']);
         add_action('admin_menu', [$this, 'registerAdminMenu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAdminAssets']);
@@ -517,7 +518,92 @@ final class ConsultoriaPlatform {
             'noResults'      => __('Nenhum resultado encontrado.', 'consultoria-platform'),
         ];
     }
+    public function registerShortcodes(): void {
+        add_shortcode('cp_marketplace', [$this, 'renderMarketplace']);
+        add_shortcode('cp_client_dashboard', [$this, 'renderClientDashboard']);
+        add_shortcode('cp_consultant_dashboard', [$this, 'renderConsultantDashboard']);
+        add_shortcode('cp_consultant_profile', [$this, 'renderConsultantProfile']);
+        add_shortcode('cp_plans', [$this, 'renderPlans']);
+        add_shortcode('cp_wallet', [$this, 'renderWallet']);
+    }
+
+    public function renderMarketplace(): string {
+        ob_start();
+        $template = CP_PLUGIN_DIR . 'modules/marketplace/templates/marketplace.php';
+        if (file_exists($template)) require $template;
+        return ob_get_clean();
+    }
+
+    public function renderClientDashboard(): string {
+        ob_start();
+        echo '<div class="container py-4"><h1 class="h3 fw-bold mb-4">Meu Painel</h1><div class="row g-4">';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-projects">-</div><div class="stat-label">Projetos</div></div></div>';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-proposals">-</div><div class="stat-label">Propostas</div></div></div>';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-spent">R$ -</div><div class="stat-label">Total Gasto</div></div></div>';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-tickets">-</div><div class="stat-label">Tickets</div></div></div>';
+        echo '</div></div>';
+        return ob_get_clean();
+    }
+
+    public function renderConsultantDashboard(): string {
+        ob_start();
+        echo '<div class="container py-4"><h1 class="h3 fw-bold mb-4">Painel do Consultor</h1><div class="row g-4">';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-projects">-</div><div class="stat-label">Projetos Ativos</div></div></div>';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-earnings">R$ -</div><div class="stat-label">Ganhos do Mês</div></div></div>';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-rating">-</div><div class="stat-label">Avaliação</div></div></div>';
+        echo '<div class="col-md-3"><div class="dashboard-card text-center"><div class="stat-value" id="cd-hours">-</div><div class="stat-label">Horas Registradas</div></div></div>';
+        echo '</div></div>';
+        return ob_get_clean();
+    }
+
+    public function renderConsultantProfile(): string {
+        ob_start();
+        echo '<div class="container py-4">';
+        echo '<h1 class="h3 fw-bold mb-4">Perfil do Consultor</h1>';
+        echo '<div id="consultant-profile"><div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Carregando perfil...</p></div></div>';
+        echo '</div>';
+        return ob_get_clean();
+    }
+
+    public function renderPlans(): string {
+        ob_start();
+        $plans = [
+            'basico' => ['name' => 'Básico', 'price' => 49.90, 'features' => ['1 consulta/mês', 'Suporte por e-mail', 'Relatório mensal']],
+            'profissional' => ['name' => 'Profissional', 'price' => 99.90, 'features' => ['3 consultas/mês', 'Suporte prioritário', 'Relatórios semanais', 'Dashboard']],
+            'enterprise' => ['name' => 'Enterprise', 'price' => 199.90, 'features' => ['Consultas ilimitadas', 'Suporte 24/7', 'Relatórios em tempo real', 'API dedicada', 'Gerente de conta']],
+        ];
+        echo '<div class="container py-4"><h1 class="h3 fw-bold mb-4 text-center">Planos</h1><div class="row g-4 justify-content-center">';
+        foreach ($plans as $slug => $plan) {
+            echo '<div class="col-md-4"><div class="card text-center h-100"><div class="card-body">';
+            echo '<h5 class="fw-bold">' . $plan['name'] . '</h5>';
+            echo '<h2 class="text-primary fw-bold">R$ ' . number_format($plan['price'], 2, ',', '.') . '</h2>';
+            echo '<p class="text-muted">por mês</p><ul class="list-unstyled mt-3 mb-4">';
+            foreach ($plan['features'] as $f) {
+                echo '<li><i class="bi bi-check-circle text-success me-2"></i>' . $f . '</li>';
+            }
+            echo '</ul><a href="/checkout/?plan=' . $slug . '" class="btn btn-primary w-100">Assinar</a>';
+            echo '</div></div></div>';
+        }
+        echo '</div></div>';
+        return ob_get_clean();
+    }
+
+    public function renderWallet(): string {
+        ob_start();
+        $template = CP_PLUGIN_DIR . 'modules/wallet/templates/wallet.php';
+        if (file_exists($template)) {
+            $wallet = null;
+            $transactions = [];
+            require $template;
+        } else {
+            echo '<div class="container py-4"><h1 class="h3 fw-bold mb-4">Minha Carteira</h1><p class="text-muted">Carteira disponível em breve.</p></div>';
+        }
+        return ob_get_clean();
+
+    }
 }
+
+
 
 function Consultoria(): ConsultoriaPlatform {
     return ConsultoriaPlatform::getInstance();
