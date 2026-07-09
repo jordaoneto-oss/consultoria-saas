@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:6.4-php8.2-apache
+    container_name: consultoria_wordpress
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: consultoria
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_REDIS_HOST', 'redis');
+        define('WP_REDIS_PORT', 6379);
+        define('WP_DEBUG', true);
+        define('WP_DEBUG_LOG', true);
+        define('WP_DEBUG_DISPLAY', false);
+        define('JWT_AUTH_SECRET_KEY', '${JWT_SECRET_KEY:-dev-secret-key-change-in-production}');
+        define('JWT_AUTH_CORS_ENABLE', true);
+    volumes:
+      - ./wp-content/plugins/consultoria-platform:/var/www/html/wp-content/plugins/consultoria-platform
+      - ./wp-content/themes/consultoria-theme:/var/www/html/wp-content/themes/consultoria-theme
+      - ./docker/data/uploads:/var/www/html/wp-content/uploads
+      - ./docker/data/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: consultoria_mysql
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: consultoria
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - ./docker/mysql:/var/lib/mysql
+      - ./docs/database/SQL_COMPLETE.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: consultoria_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./docker/redis:/data
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: consultoria_phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+      UPLOAD_LIMIT: 128M
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: consultoria_mailhog
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:

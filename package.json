@@ -1,0 +1,28 @@
+{
+  "name": "consultoria-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Consultoria SaaS - Frontend build tooling",
+  "scripts": {
+    "build": "npm run build:css && npm run build:js",
+    "build:css": "postcss wp-content/themes/consultoria-theme/assets/css/main.css -o wp-content/themes/consultoria-theme/assets/css/main.min.css",
+    "build:js": "webpack --mode production",
+    "dev": "npm run dev:css && npm run dev:js",
+    "dev:css": "postcss wp-content/themes/consultoria-theme/assets/css/main.css -o wp-content/themes/consultoria-theme/assets/css/main.min.css --watch",
+    "dev:js": "webpack --mode development --watch",
+    "lint:css": "stylelint 'wp-content/**/*.css'",
+    "lint:js": "eslint 'wp-content/**/*.js'",
+    "format": "prettier --write 'wp-content/**/*.{css,js,php}'"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.16",
+    "cssnano": "^6.0.1",
+    "eslint": "^8.50.0",
+    "postcss": "^8.4.31",
+    "postcss-cli": "^10.1.0",
+    "prettier": "^3.0.3",
+    "stylelint": "^15.10.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  }
+}

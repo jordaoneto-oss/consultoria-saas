@@ -1,0 +1,49 @@
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# PHP
+vendor/
+composer.lock
+*.log
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+yarn-error.log
+
+# WordPress
+wp-config.php
+wp-content/uploads/
+wp-content/debug.log
+wp-content/cache/
+wp-content/upgrade/
+.sass-cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Build
+dist/
+build/
+*.map
+
+# Tests
+phpunit.xml
+.clover.xml
+coverage/
+.phpunit.result.cache
+
+# Docker
+docker/data/
+docker/mysql/
